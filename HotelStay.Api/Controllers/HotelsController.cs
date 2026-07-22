@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace HotelStay.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/hotels")]
+[Route("hotels")]
 public class HotelsController : ControllerBase
 {
     private readonly IHotelSearchService _searchService;

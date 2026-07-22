@@ -53,7 +53,7 @@ public class HotelStayTests
     public async Task SearchEndpointReturnsBadRequestForMissingRequiredParameters()
     {
         var client = _factory!.CreateClient();
-        var response = await client.GetAsync("/api/v1/hotels/search?destination=Paris&checkIn=2026-08-01");
+        var response = await client.GetAsync("/hotels/search?destination=Paris&checkIn=2026-08-01");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -62,7 +62,7 @@ public class HotelStayTests
     public async Task SearchEndpointReturnsBadRequestForInvalidDates()
     {
         var client = _factory!.CreateClient();
-        var response = await client.GetAsync("/api/v1/hotels/search?destination=Paris&checkIn=not-a-date&checkOut=2026-08-05");
+        var response = await client.GetAsync("/hotels/search?destination=Paris&checkIn=not-a-date&checkOut=2026-08-05");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -82,7 +82,7 @@ public class HotelStayTests
             "12345"
         );
 
-        var response = await client.PostAsJsonAsync("/api/v1/hotels/reserve", request);
+        var response = await client.PostAsJsonAsync("/hotels/reserve", request);
 
         Assert.That(response.StatusCode, Is.EqualTo((HttpStatusCode)422));
     }
@@ -102,7 +102,7 @@ public class HotelStayTests
             "P1234567"
         );
 
-        var response = await client.PostAsJsonAsync("/api/v1/hotels/reserve", request);
+        var response = await client.PostAsJsonAsync("/hotels/reserve", request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         var reservation = await response.Content.ReadFromJsonAsync<ReservationResponse>();
@@ -115,7 +115,7 @@ public class HotelStayTests
     public async Task SearchEndpointReturnsResultsForValidQuery()
     {
         var client = _factory!.CreateClient();
-        var response = await client.GetAsync("/api/v1/hotels/search?destination=Paris&checkIn=2026-08-01&checkOut=2026-08-05");
+        var response = await client.GetAsync("/hotels/search?destination=Paris&checkIn=2026-08-01&checkOut=2026-08-05");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var hotels = await response.Content.ReadFromJsonAsync<List<HotelDto>>();
@@ -128,7 +128,7 @@ public class HotelStayTests
     public async Task SearchEndpointReturnsBadRequestForUnknownDestination()
     {
         var client = _factory!.CreateClient();
-        var response = await client.GetAsync("/api/v1/hotels/search?destination=UnknownCity&checkIn=2026-08-01&checkOut=2026-08-05");
+        var response = await client.GetAsync("/hotels/search?destination=UnknownCity&checkIn=2026-08-01&checkOut=2026-08-05");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -148,7 +148,7 @@ public class HotelStayTests
             "P1234567"
         );
 
-        var response = await client.PostAsJsonAsync("/api/v1/hotels/reserve", request);
+        var response = await client.PostAsJsonAsync("/hotels/reserve", request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -157,7 +157,7 @@ public class HotelStayTests
     public async Task ReservationEndpointReturnsNotFoundForMissingReference()
     {
         var client = _factory!.CreateClient();
-        var response = await client.GetAsync("/api/v1/hotels/reservation/not-a-real-reference");
+        var response = await client.GetAsync("/hotels/reservation/not-a-real-reference");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
@@ -177,14 +177,14 @@ public class HotelStayTests
             "P1234567"
         );
 
-        var createResponse = await client.PostAsJsonAsync("/api/v1/hotels/reserve", request);
+        var createResponse = await client.PostAsJsonAsync("/hotels/reserve", request);
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
 
         var createdReservation = await createResponse.Content.ReadFromJsonAsync<ReservationResponse>();
         Assert.That(createdReservation, Is.Not.Null);
 
         var reference = createdReservation!.Reference;
-        var getResponse = await client.GetAsync($"/api/v1/hotels/reservation/{reference}");
+        var getResponse = await client.GetAsync($"/hotels/reservation/{reference}");
 
         Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var fetchedReservation = await getResponse.Content.ReadFromJsonAsync<ReservationResponse>();

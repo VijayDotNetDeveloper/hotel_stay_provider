@@ -10,11 +10,10 @@ A hotel availability and reservation application with a .NET backend and React f
 ## Backend
 
 - Project: `HotelStay.Api`
-- API base path: `/api/v1`
 - Implemented endpoints:
-  - `GET /api/v1/hotels/search`
-  - `POST /api/v1/hotels/reserve`
-  - `GET /api/v1/hotels/reservation/{reference}`
+  - `GET /hotels/search`
+  - `POST /hotels/reserve`
+  - `GET /hotels/reservation/{reference}`
   - `GET /api/v1/health`
 - Features:
   - `IHotelProvider` abstraction for multiple hotel providers
