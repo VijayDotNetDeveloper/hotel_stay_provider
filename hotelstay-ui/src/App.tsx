@@ -7,6 +7,8 @@ const destinations = ['Seattle', 'Portland', 'New York', 'Paris', 'Tokyo', 'Lond
 const roomTypes: RoomType[] = ['Standard', 'Deluxe', 'Suite'];
 const documentTypes: DocumentType[] = ['Passport', 'NationalId'];
 
+type PageView = 'search' | 'reservation' | 'confirmation';
+
 function App() {
   const [destination, setDestination] = useState('Seattle');
   const [checkIn, setCheckIn] = useState('2026-08-01');
@@ -18,7 +20,9 @@ function App() {
   const [documentType, setDocumentType] = useState<DocumentType>('Passport');
   const [documentNumber, setDocumentNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [searchError, setSearchError] = useState('');
+  const [reservationError, setReservationError] = useState('');
+  const [page, setPage] = useState<PageView>('search');
   const [confirmation, setConfirmation] = useState<null | {
     reference: string;
     provider: string;
@@ -31,12 +35,19 @@ function App() {
   const canSearch = Boolean(destination && checkIn && checkOut);
 
   const handleSearch = async () => {
-    setError('');
+    setSearchError('');
+    setReservationError('');
     setConfirmation(null);
     setSelectedHotel(null);
+    setPage('search');
 
     if (!canSearch) {
-      setError('Please complete destination and dates before searching.');
+      setSearchError('Please complete destination, check-in, and check-out before searching.');
+      return;
+    }
+
+    if (checkOut <= checkIn) {
+      setSearchError('Check-out must be later than check-in.');
       return;
     }
 
@@ -45,24 +56,31 @@ function App() {
       const results = await searchHotels(destination, checkIn, checkOut, roomType || undefined);
       setHotels(results);
       if (!results.length) {
-        setError('No available hotel offers found for the selected criteria.');
+        setSearchError('No available hotel offers found for the selected criteria.');
       }
     } catch (err) {
-      setError((err as Error).message);
+      setSearchError((err as Error).message);
       setHotels([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const startReservation = (hotel: Hotel) => {
+    setSelectedHotel(hotel);
+    setReservationError('');
+    setSearchError('');
+    setPage('reservation');
+  };
+
   const handleReserve = async () => {
     if (!selectedHotel) return;
     if (!guestName.trim() || !documentNumber.trim()) {
-      setError('Guest name and document number are required.');
+      setReservationError('Guest name and document number are required.');
       return;
     }
 
-    setError('');
+    setReservationError('');
     setLoading(true);
 
     const request: ReservationRequest = {
@@ -85,15 +103,23 @@ function App() {
         cancellationPolicy: reservation.cancellationPolicy,
         hotelName: reservation.hotelName,
       });
+      setPage('confirmation');
       setHotels([]);
       setSelectedHotel(null);
       setGuestName('');
       setDocumentNumber('');
     } catch (err) {
-      setError((err as Error).message);
+      setReservationError((err as Error).message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetToSearch = () => {
+    setPage('search');
+    setConfirmation(null);
+    setReservationError('');
+    setSearchError('');
   };
 
   return (
@@ -107,45 +133,114 @@ function App() {
       </header>
 
       <main>
-        <section className="panel search-panel">
-          <h2>Search</h2>
-          <div className="form-grid">
-            <label>
-              Destination
-              <select value={destination} onChange={e => setDestination(e.target.value)}>
-                {destinations.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Check-in
-              <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
-            </label>
-            <label>
-              Check-out
-              <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
-            </label>
-            <label>
-              Room type
-              <select value={roomType} onChange={e => setRoomType(e.target.value as RoomType | '')}>
-                <option value="">Any</option>
-                {roomTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="action-row">
-            <button type="button" onClick={handleSearch} disabled={!canSearch || loading}>
-              {loading ? 'Searching…' : 'Search hotels'}
-            </button>
-          </div>
-        </section>
+        {page === 'search' && (
+          <>
+            <section className="panel search-panel">
+              <h2>Search</h2>
+              <div className="form-grid">
+                <label>
+                  Destination <span className="required">*</span>
+                  <select value={destination} onChange={e => setDestination(e.target.value)}>
+                    {destinations.map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Check-in <span className="required">*</span>
+                  <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+                </label>
+                <label>
+                  Check-out <span className="required">*</span>
+                  <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
+                </label>
+                <label>
+                  Room type
+                  <select value={roomType} onChange={e => setRoomType(e.target.value as RoomType | '')}>
+                    <option value="">Any</option>
+                    {roomTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="action-row">
+                <button type="button" onClick={handleSearch} disabled={!canSearch || loading}>
+                  {loading ? 'Searching…' : 'Search hotels'}
+                </button>
+              </div>
+            </section>
 
-        {error && <div className="notice notice-error">{error}</div>}
+            {searchError && <div className="notice notice-error">{searchError}</div>}
 
-        {confirmation && (
+            <section className="panel results-panel">
+              <div className="results-header">
+                <h2>Results</h2>
+                <p>{hotels.length} offer{hotels.length === 1 ? '' : 's'} available</p>
+              </div>
+              {!hotels.length && !loading && <p className="empty-state">Search to see available hotel offers.</p>}
+              <div className="hotel-list">
+                {sortedHotels.map(hotel => (
+                  <article className="hotel-card" key={hotel.hotelId}>
+                    <div className="hotel-tag"><span>{hotel.provider}</span></div>
+                    <div className="hotel-info">
+                      <h3>{hotel.name}</h3>
+                      <p>{hotel.roomType} • ${hotel.ratePerNight.toFixed(2)} / night</p>
+                      <p className="hotel-meta">Total ${hotel.totalPrice.toFixed(2)} • {hotel.cancellationPolicy}</p>
+                    </div>
+                    <div className="hotel-badge">
+                      <span>{hotel.starRating ? `${hotel.starRating} ★` : 'No rating'}</span>
+                    </div>
+                    <button type="button" className="reserve-button" onClick={() => startReservation(hotel)}>
+                      Reserve
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {page === 'reservation' && selectedHotel && (
+          <section className="panel reservation-panel">
+            <div className="page-header-row">
+              <h2>Complete reservation</h2>
+              <button type="button" className="link-button" onClick={resetToSearch}>
+                Back to search
+              </button>
+            </div>
+            <div className="selected-summary">
+              <p><strong>{selectedHotel.name}</strong></p>
+              <p>{selectedHotel.provider} • {selectedHotel.roomType}</p>
+              <p>Total: ${selectedHotel.totalPrice.toFixed(2)}</p>
+              <p>Cancellation: {selectedHotel.cancellationPolicy}</p>
+            </div>
+            <div className="form-grid">
+              <label>
+                Guest name <span className="required">*</span>
+                <input type="text" value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Jane Doe" />
+              </label>
+              <label>
+                Document type <span className="required">*</span>
+                <select value={documentType} onChange={e => setDocumentType(e.target.value as DocumentType)}>
+                  {documentTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </label>
+              <label>
+                Document number <span className="required">*</span>
+                <input type="text" value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} placeholder="Document number" />
+              </label>
+            </div>
+            {reservationError && <div className="notice notice-error">{reservationError}</div>}
+            <div className="action-row">
+              <button type="button" onClick={handleReserve} disabled={loading}>
+                {loading ? 'Reserving…' : 'Confirm reservation'}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {page === 'confirmation' && confirmation && (
           <section className="panel confirmation-panel">
             <h2>Reservation confirmed</h2>
             <p>Your booking is confirmed with reference <strong>{confirmation.reference}</strong>.</p>
@@ -167,60 +262,9 @@ function App() {
                 <p>{confirmation.cancellationPolicy}</p>
               </div>
             </div>
-          </section>
-        )}
-
-        <section className="panel results-panel">
-          <div className="results-header">
-            <h2>Results</h2>
-            <p>{hotels.length} offer{hotels.length === 1 ? '' : 's'} available</p>
-          </div>
-          {!hotels.length && !loading && <p className="empty-state">Search to see available hotel offers.</p>}
-          <div className="hotel-list">
-            {sortedHotels.map(hotel => (
-              <article key={hotel.hotelId} className={`hotel-card ${selectedHotel?.hotelId === hotel.hotelId ? 'selected' : ''}`} onClick={() => setSelectedHotel(hotel)}>
-                <div className="hotel-tag"><span>{hotel.provider}</span></div>
-                <div className="hotel-info">
-                  <h3>{hotel.name}</h3>
-                  <p>{hotel.roomType} • ${hotel.ratePerNight.toFixed(2)} / night</p>
-                  <p className="hotel-meta">Total ${hotel.totalPrice.toFixed(2)} • {hotel.cancellationPolicy}</p>
-                </div>
-                <div className="hotel-badge">
-                  <span>${hotel.totalPrice.toFixed(0)}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {selectedHotel && (
-          <section className="panel reservation-panel">
-            <h2>Complete reservation</h2>
-            <div className="selected-summary">
-              <p><strong>{selectedHotel.name}</strong></p>
-              <p>{selectedHotel.provider} • {selectedHotel.roomType}</p>
-              <p>Total: ${selectedHotel.totalPrice.toFixed(2)}</p>
-              <p>Cancellation: {selectedHotel.cancellationPolicy}</p>
-            </div>
-            <div className="form-grid">
-              <label>
-                Guest name
-                <input type="text" value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Jane Doe" />
-              </label>
-              <label>
-                Document type
-                <select value={documentType} onChange={e => setDocumentType(e.target.value as DocumentType)}>
-                  {documentTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                </select>
-              </label>
-              <label>
-                Document number
-                <input type="text" value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} placeholder="Document number" />
-              </label>
-            </div>
             <div className="action-row">
-              <button type="button" onClick={handleReserve} disabled={loading}>
-                {loading ? 'Reserving…' : 'Reserve selected hotel'}
+              <button type="button" onClick={resetToSearch}>
+                Search again
               </button>
             </div>
           </section>

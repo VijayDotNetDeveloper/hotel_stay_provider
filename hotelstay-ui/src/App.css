@@ -167,11 +167,63 @@ button:disabled {
 
 .hotel-badge span {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
   padding: 14px 18px;
   border-radius: 16px;
   background: var(--accent);
   color: #fff;
   font-weight: 700;
+}
+
+.hotel-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  align-items: center;
+}
+
+.hotel-card .reserve-button {
+  border: none;
+  border-radius: 16px;
+  background: #6b46ff;
+  color: #fff;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hotel-card .reserve-button:hover {
+  background: #5123d8;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.link-button {
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.required {
+  color: #d12f4c;
+  margin-left: 4px;
 }
 
 .empty-state {
