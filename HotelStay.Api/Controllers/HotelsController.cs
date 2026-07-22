@@ -1,164 +1,89 @@
 using HotelStay.Api.Models;
 using HotelStay.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace HotelStay.Api.Controllers;
 
 [ApiController]
-[Route("hotels")]
+[Route("api/v1/hotels")]
 public class HotelsController : ControllerBase
 {
-    private readonly DataService _dataService;
-    private readonly IEnumerable<IHotelProvider> _providers;
+    private readonly IHotelSearchService _searchService;
+    private readonly IReservationService _reservationService;
 
-    public HotelsController(DataService dataService, IEnumerable<IHotelProvider> providers)
+    public HotelsController(IHotelSearchService searchService, IReservationService reservationService)
     {
-        _dataService = dataService;
-        _providers = providers;
+        _searchService = searchService;
+        _reservationService = reservationService;
     }
 
     [HttpGet("search")]
-    public async Task<IActionResult> SearchHotels(
-        [FromQuery] string? destination,
-        [FromQuery] string? checkIn,
-        [FromQuery] string? checkOut,
-        [FromQuery] string? roomType)
+    public async Task<IActionResult> SearchHotels([FromQuery] SearchRequest request)
     {
-        if (string.IsNullOrWhiteSpace(destination))
-            return BadRequest(new { Error = "Missing required parameter 'destination'." });
-
-        if (string.IsNullOrWhiteSpace(checkIn))
-            return BadRequest(new { Error = "Missing required parameter 'checkIn'." });
-
-        if (string.IsNullOrWhiteSpace(checkOut))
-            return BadRequest(new { Error = "Missing required parameter 'checkOut'." });
-
-        if (!DateOnly.TryParse(checkIn, out var parsedCheckIn))
-            return BadRequest(new { Error = "Invalid checkIn date." });
-
-        if (!DateOnly.TryParse(checkOut, out var parsedCheckOut))
-            return BadRequest(new { Error = "Invalid checkOut date." });
-
-        if (parsedCheckOut <= parsedCheckIn)
-            return BadRequest(new { Error = "checkOut must be later than checkIn." });
-
-        RoomType? parsedRoomType = null;
-        if (!string.IsNullOrWhiteSpace(roomType))
+        if (!ModelState.IsValid)
         {
-            if (!Enum.TryParse<RoomType>(roomType, true, out var tempRoomType))
-                return BadRequest(new { Error = "Invalid roomType value." });
-
-            parsedRoomType = tempRoomType;
+            return ValidationProblem(ModelState);
         }
 
-        if (!_dataService.IsKnownCity(destination))
-            return BadRequest(new { Error = "Unknown destination city." });
-
-        var results = await Task.WhenAll(_providers.Select(p => p.SearchAsync(destination, parsedCheckIn, parsedCheckOut, parsedRoomType)));
-        var hotels = results.SelectMany(x => x).Where(h => h.Available).OrderBy(h => h.TotalPrice);
-
-        return Ok(hotels);
+        try
+        {
+            var hotels = await _searchService.SearchAsync(request.Destination!, request.CheckIn!.Value, request.CheckOut!.Value, request.RoomType);
+            return Ok(hotels);
+        }
+        catch (RequestValidationException validationException)
+        {
+            var details = new ValidationProblemDetails(validationException.Errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid search request"
+            };
+            return BadRequest(details);
+        }
     }
 
     [HttpPost("reserve")]
     public async Task<IActionResult> CreateReservation([FromBody] ReservationRequest request)
     {
-        if (request is null ||
-            string.IsNullOrWhiteSpace(request.Destination) ||
-            string.IsNullOrWhiteSpace(request.CheckIn) ||
-            string.IsNullOrWhiteSpace(request.CheckOut) ||
-            string.IsNullOrWhiteSpace(request.HotelId) ||
-            string.IsNullOrWhiteSpace(request.GuestName) ||
-            string.IsNullOrWhiteSpace(request.DocumentNumber))
+        try
         {
-            return BadRequest(new { Error = "One or more required reservation fields are missing." });
+            var reservation = await _reservationService.CreateReservationAsync(request);
+            return CreatedAtAction(nameof(GetReservation), new { reference = reservation.Reference }, reservation);
         }
-
-        if (!DateOnly.TryParse(request.CheckIn, out var parsedCheckIn))
-            return BadRequest(new { Error = "Invalid checkIn date." });
-
-        if (!DateOnly.TryParse(request.CheckOut, out var parsedCheckOut))
-            return BadRequest(new { Error = "Invalid checkOut date." });
-
-        if (parsedCheckOut <= parsedCheckIn)
-            return BadRequest(new { Error = "checkOut must be later than checkIn." });
-
-        if (!_dataService.IsKnownCity(request.Destination))
-            return BadRequest(new { Error = "Unknown destination city." });
-
-        var isDomestic = _dataService.IsDomestic(request.Destination);
-        if (isDomestic && request.DocumentType == DocumentType.Passport)
-            return UnprocessableEntity(new { Error = "Domestic destinations require NationalId." });
-        if (!isDomestic && request.DocumentType != DocumentType.Passport)
-            return UnprocessableEntity(new { Error = "International destinations require Passport." });
-
-        var searchResults = await Task.WhenAll(_providers.Select(p => p.SearchAsync(request.Destination, parsedCheckIn, parsedCheckOut, request.RoomType)));
-        var hotel = searchResults.SelectMany(r => r).FirstOrDefault(h => string.Equals(h.HotelId, request.HotelId, StringComparison.OrdinalIgnoreCase));
-
-        if (hotel is null || !hotel.Available)
-            return BadRequest(new { Error = "Hotel not found or unavailable." });
-
-        var reference = Guid.NewGuid().ToString("N");
-        var reservation = new ReservationRecord(
-            reference,
-            hotel.Provider,
-            hotel.HotelId,
-            hotel.Name,
-            request.Destination,
-            parsedCheckIn,
-            parsedCheckOut,
-            request.GuestName,
-            request.DocumentType,
-            request.DocumentNumber,
-            hotel.RoomType,
-            hotel.TotalPrice,
-            hotel.CancellationPolicy
-        );
-
-        _dataService.AddReservation(reservation);
-
-        var response = new ReservationResponse(
-            reference,
-            reservation.Provider,
-            reservation.HotelId,
-            reservation.HotelName,
-            reservation.Destination,
-            reservation.CheckIn.ToString("yyyy-MM-dd"),
-            reservation.CheckOut.ToString("yyyy-MM-dd"),
-            reservation.GuestName,
-            reservation.DocumentType,
-            reservation.DocumentNumber,
-            reservation.RoomType,
-            reservation.TotalPrice,
-            reservation.CancellationPolicy
-        );
-
-        return CreatedAtAction(nameof(GetReservation), new { reference }, response);
+        catch (RequestValidationException validationException)
+        {
+            var details = new ValidationProblemDetails(validationException.Errors)
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Request validation failed"
+            };
+            return UnprocessableEntity(details);
+        }
+        catch (InvalidOperationException invalidOperationException)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad request",
+                Detail = invalidOperationException.Message
+            });
+        }
     }
 
     [HttpGet("reservation/{reference}")]
     public IActionResult GetReservation(string reference)
     {
-        var reservation = _dataService.GetReservation(reference);
+        var reservation = _reservationService.GetReservation(reference);
         if (reservation is null)
-            return NotFound(new { Error = "Reservation not found." });
+            return NotFound(ProblemDetailsFactory.CreateProblemDetails(HttpContext, StatusCodes.Status404NotFound, "Reservation not found."));
 
-        var response = new ReservationResponse(
-            reservation.Reference,
-            reservation.Provider,
-            reservation.HotelId,
-            reservation.HotelName,
-            reservation.Destination,
-            reservation.CheckIn.ToString("yyyy-MM-dd"),
-            reservation.CheckOut.ToString("yyyy-MM-dd"),
-            reservation.GuestName,
-            reservation.DocumentType,
-            reservation.DocumentNumber,
-            reservation.RoomType,
-            reservation.TotalPrice,
-            reservation.CancellationPolicy
-        );
+        return Ok(reservation);
+    }
 
-        return Ok(response);
+    private IActionResult BadRequestValidation(string field, string message)
+    {
+        var modelState = new ModelStateDictionary();
+        modelState.AddModelError(field, message);
+        return ValidationProblem(modelState);
     }
 }

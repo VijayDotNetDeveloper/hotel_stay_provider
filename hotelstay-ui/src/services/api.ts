@@ -1,6 +1,6 @@
 import type { Hotel, ReservationRequest, ReservationResponse, RoomType } from '../types';
 
-const API_BASE = 'http://localhost:5042';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:5042/api/v1';
 
 function buildSearchUrl(destination: string, checkIn: string, checkOut: string, roomType?: RoomType) {
   const params = new URLSearchParams({
