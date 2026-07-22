@@ -1,0 +1,4 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  HotelStay.Api -> C:\Demo\CaseStudy\hotel_stay_provider\HotelStay.Api\bin\Debug\net9.0\HotelStay.Api.dll
+C:\Demo\CaseStudy\hotel_stay_provider\HotelStay.Tests\UnitTest1.cs(124,40): error CS1061: 'HotelDto' does not contain a definition for 'Destination' and no accessible extension method 'Destination' accepting a first argument of type 'HotelDto' could be found (are you missing a using directive or an assembly reference?) [C:\Demo\CaseStudy\hotel_stay_provider\HotelStay.Tests\HotelStay.Tests.csproj]
