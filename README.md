@@ -33,7 +33,8 @@ A hotel availability and reservation application with a .NET backend and React f
   - `ConfirmationView`
 - API configuration is environment-driven via `.env` and `import.meta.env.VITE_API_BASE`
 - Default frontend backend base URL:
-  - `http://localhost:5042/api/v1`
+  - `http://localhost:5042`
+- Frontend tests run with `npm test` in the `hotelstay-ui` folder.
 
 ## Setup
 
@@ -63,8 +64,9 @@ VITE_API_BASE=http://localhost:5042/api/v1
 
 ## Testing
 
-- Test project: `HotelStay.Tests`
-- Includes unit tests and API integration tests
+- Backend tests: `HotelStay.Tests`
+- Frontend tests: `hotelstay-ui` using Vitest and Testing Library
+- Includes unit tests, API integration tests, and React component tests
 - Run tests with:
 
 ```powershell

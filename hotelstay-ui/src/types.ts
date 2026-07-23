@@ -1,6 +1,6 @@
 export type RoomType = 'Standard' | 'Deluxe' | 'Suite';
 export type DocumentType = 'Passport' | 'NationalId';
-export type CancellationPolicy = 'Flexible' | 'Limited' | 'NonRefundable';
+export type CancellationPolicy = 'FreeCancellation' | 'Flexible' | 'NonRefundable';
 
 export interface Hotel {
   provider: string;

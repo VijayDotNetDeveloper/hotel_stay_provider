@@ -15,7 +15,7 @@ public enum DocumentType
 
 public enum CancellationPolicy
 {
+    FreeCancellation,
     Flexible,
-    Limited,
     NonRefundable
 }

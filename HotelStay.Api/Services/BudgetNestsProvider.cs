@@ -65,7 +65,8 @@ public sealed class BudgetNestsProvider : IHotelProvider
         return policy.ToLowerInvariant() switch
         {
             "flexible" => CancellationPolicy.Flexible,
-            "limited" => CancellationPolicy.Limited,
+            "nonrefundable" => CancellationPolicy.NonRefundable,
+            "limited" => CancellationPolicy.Flexible,
             _ => CancellationPolicy.NonRefundable
         };
     }

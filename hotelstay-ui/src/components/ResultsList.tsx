@@ -2,15 +2,26 @@ import type { Hotel } from '../types';
 
 interface ResultsListProps {
   hotels: Hotel[];
+  sortDirection: 'asc' | 'desc';
+  onSortDirectionChange: (direction: 'asc' | 'desc') => void;
   onSelect: (hotel: Hotel) => void;
 }
 
-export function ResultsList({ hotels, onSelect }: ResultsListProps) {
+export function ResultsList({ hotels, sortDirection, onSortDirectionChange, onSelect }: ResultsListProps) {
   return (
     <section className="panel results-panel">
       <div className="results-header">
-        <h2>Results</h2>
-        <p>{hotels.length} offer{hotels.length === 1 ? '' : 's'} available</p>
+        <div>
+          <h2>Results</h2>
+          <p>{hotels.length} offer{hotels.length === 1 ? '' : 's'} available</p>
+        </div>
+        <label className="sort-control">
+          <span>Sort by total price</span>
+          <select value={sortDirection} onChange={e => onSortDirectionChange(e.target.value as 'asc' | 'desc')}>
+            <option value="asc">Lowest first</option>
+            <option value="desc">Highest first</option>
+          </select>
+        </label>
       </div>
       {!hotels.length ? (
         <p className="empty-state">Search to see available hotel offers.</p>

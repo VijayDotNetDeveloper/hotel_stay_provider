@@ -34,7 +34,7 @@ public class HotelStayTests
 
         Assert.That(hotel.Provider, Is.EqualTo("BudgetNests"));
         Assert.That(hotel.RoomType, Is.EqualTo(RoomType.Deluxe));
-        Assert.That(hotel.CancellationPolicy, Is.EqualTo(CancellationPolicy.NonRefundable).Or.EqualTo(CancellationPolicy.Limited).Or.EqualTo(CancellationPolicy.Flexible));
+        Assert.That(hotel.CancellationPolicy, Is.EqualTo(CancellationPolicy.NonRefundable).Or.EqualTo(CancellationPolicy.Flexible).Or.EqualTo(CancellationPolicy.FreeCancellation));
         Assert.That(hotel.Available, Is.True);
     }
 
@@ -87,6 +87,12 @@ public class HotelStayTests
         Assert.That(response.StatusCode, Is.EqualTo((HttpStatusCode)422));
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
     [Test]
     public async Task ReserveEndpointCreatesReservationForValidRequest()
     {
@@ -105,7 +111,7 @@ public class HotelStayTests
         var response = await client.PostAsJsonAsync("/hotels/reserve", request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-        var reservation = await response.Content.ReadFromJsonAsync<ReservationResponse>();
+        var reservation = await response.Content.ReadFromJsonAsync<ReservationResponse>(_jsonSerializerOptions);
         Assert.That(reservation, Is.Not.Null);
         Assert.That(reservation!.Reference, Is.Not.Null.And.Not.Empty);
         Assert.That(reservation.Provider, Is.EqualTo("PremierStays"));
@@ -118,7 +124,7 @@ public class HotelStayTests
         var response = await client.GetAsync("/hotels/search?destination=Paris&checkIn=2026-08-01&checkOut=2026-08-05");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var hotels = await response.Content.ReadFromJsonAsync<List<HotelDto>>();
+        var hotels = await response.Content.ReadFromJsonAsync<List<HotelDto>>(_jsonSerializerOptions);
         Assert.That(hotels, Is.Not.Null);
         Assert.That(hotels, Is.Not.Empty);
         Assert.That(hotels!.Any(h => h.HotelId.StartsWith("PREM-") || h.HotelId.StartsWith("BUD-")), Is.True);
@@ -180,14 +186,14 @@ public class HotelStayTests
         var createResponse = await client.PostAsJsonAsync("/hotels/reserve", request);
         Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
 
-        var createdReservation = await createResponse.Content.ReadFromJsonAsync<ReservationResponse>();
+        var createdReservation = await createResponse.Content.ReadFromJsonAsync<ReservationResponse>(_jsonSerializerOptions);
         Assert.That(createdReservation, Is.Not.Null);
 
         var reference = createdReservation!.Reference;
         var getResponse = await client.GetAsync($"/hotels/reservation/{reference}");
 
         Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var fetchedReservation = await getResponse.Content.ReadFromJsonAsync<ReservationResponse>();
+        var fetchedReservation = await getResponse.Content.ReadFromJsonAsync<ReservationResponse>(_jsonSerializerOptions);
         Assert.That(fetchedReservation, Is.Not.Null);
         Assert.That(fetchedReservation!.Reference, Is.EqualTo(reference));
         Assert.That(fetchedReservation.HotelId, Is.EqualTo("PREM-103"));

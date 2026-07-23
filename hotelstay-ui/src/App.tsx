@@ -25,6 +25,7 @@ function App() {
   const [searchError, setSearchError] = useState('');
   const [reservationError, setReservationError] = useState('');
   const [page, setPage] = useState<PageView>('search');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [confirmation, setConfirmation] = useState<null | {
     reference: string;
     provider: string;
@@ -33,7 +34,10 @@ function App() {
     hotelName: string;
   }>(null);
 
-  const sortedHotels = useMemo(() => [...hotels].sort((a, b) => a.totalPrice - b.totalPrice), [hotels]);
+  const sortedHotels = useMemo(() => {
+    const sorted = [...hotels].sort((a, b) => a.totalPrice - b.totalPrice);
+    return sortDirection === 'desc' ? sorted.reverse() : sorted;
+  }, [hotels, sortDirection]);
   const canSearch = Boolean(destination && checkIn && checkOut);
   const isInternationalDestination = internationalDestinations.includes(destination);
   const documentHint = isInternationalDestination
@@ -155,7 +159,12 @@ function App() {
               canSearch={canSearch}
             />
             {searchError && <div className="notice notice-error">{searchError}</div>}
-            <ResultsList hotels={sortedHotels} onSelect={startReservation} />
+            <ResultsList
+              hotels={sortedHotels}
+              sortDirection={sortDirection}
+              onSortDirectionChange={setSortDirection}
+              onSelect={startReservation}
+            />
           </>
         )}
 
